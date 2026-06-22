@@ -1,14 +1,13 @@
 # Compliance Sentry
-
-Compliance Sentry is a Python project that provides a simple implementation of a consent lifecycle management system.
+Compliance Sentry is a Python project that logs data access events in real-time and stores them securely for auditing purposes.
 
 ## Features
+* Logs data access events with timestamp, user, and data accessed
+* Stores logs securely using JSON
+* Provides methods to retrieve and store logs
 
-* Revoke consent
-* Get consent status
-* Add new consent
-* Check if consent is revoked
-
-## Tests
-
-Run tests using `pytest` command.
+## Usage
+1. Create an instance of the `ComplianceSentry` class
+2. Use the `log_data_access` method to log data access events
+3. Use the `get_logs` method to retrieve logged events
+4. Use the `store_logs_securely` method to store logs securely

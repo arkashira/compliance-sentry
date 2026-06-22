@@ -1,38 +1,29 @@
 import json
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict
+from typing import List
 
 @dataclass
-class Consent:
-    id: int
-    status: str
+class DataAccessEvent:
     timestamp: str
+    user: str
+    data_accessed: str
 
 class ComplianceSentry:
     def __init__(self):
-        self.consents: Dict[int, Consent] = {}
-        self.audit_log: list = []
+        self.logs = []
 
-    def revoke_consent(self, id: int) -> None:
-        if id in self.consents:
-            self.consents[id].status = 'revoked'
-            self.consents[id].timestamp = datetime.now().isoformat()
-            self.audit_log.append(f"Consent {id} revoked at {self.consents[id].timestamp}")
-        else:
-            raise ValueError("Consent not found")
+    def log_data_access(self, user: str, data_accessed: str):
+        event = DataAccessEvent(
+            timestamp=datetime.now().isoformat(),
+            user=user,
+            data_accessed=data_accessed
+        )
+        self.logs.append(event)
 
-    def get_consent(self, id: int) -> Consent:
-        if id in self.consents:
-            return self.consents[id]
-        else:
-            raise ValueError("Consent not found")
+    def get_logs(self) -> List[DataAccessEvent]:
+        return self.logs
 
-    def add_consent(self, id: int) -> None:
-        self.consents[id] = Consent(id, 'active', datetime.now().isoformat())
-
-    def is_consent_revoked(self, id: int) -> bool:
-        if id in self.consents:
-            return self.consents[id].status == 'revoked'
-        else:
-            raise ValueError("Consent not found")
+    def store_logs_securely(self):
+        # Simulate secure storage by converting logs to JSON
+        return json.dumps([event.__dict__ for event in self.logs])
