@@ -1,40 +1,49 @@
-from compliance_sentry import ComplianceSentry, DataAccessEvent
+import time
 import pytest
-from datetime import datetime
-import json  # Import json module
+from compliance_sentry import ConsentRecord, Logger, LogEntry
 
-def test_log_data_access():
-    sentry = ComplianceSentry()
-    sentry.log_data_access("user1", "data1")
-    assert len(sentry.get_logs()) == 1
-    event = sentry.get_logs()[0]
-    assert isinstance(event, DataAccessEvent)
-    assert event.user == "user1"
-    assert event.data_accessed == "data1"
-    assert event.timestamp is not None
+@pytest.fixture
+def logger():
+    return Logger()
 
-def test_get_logs():
-    sentry = ComplianceSentry()
-    sentry.log_data_access("user1", "data1")
-    sentry.log_data_access("user2", "data2")
-    logs = sentry.get_logs()
-    assert len(logs) == 2
-    assert logs[0].user == "user1"
-    assert logs[1].user == "user2"
+def test_record_access_creates_entry(logger):
+    record = ConsentRecord(id="c1")
+    entry = logger.record_access(record, actor="alice", action="read", scope="profile")
+    assert isinstance(entry, LogEntry)
+    assert entry.actor == "alice"
+    assert entry.action == "read"
+    assert entry.scope == "profile"
+    # timestamp should be recent
+    assert time.time() - entry.timestamp < 5
 
-def test_store_logs_securely():
-    sentry = ComplianceSentry()
-    sentry.log_data_access("user1", "data1")
-    stored_logs = sentry.store_logs_securely()
-    assert stored_logs is not None
-    loaded_logs = json.loads(stored_logs)  # Use imported json module
-    assert len(loaded_logs) == 1
-    assert loaded_logs[0]["user"] == "user1"
-    assert loaded_logs[0]["data_accessed"] == "data1"
-    assert loaded_logs[0]["timestamp"] is not None
+def test_query_filters_by_actor(logger):
+    record = ConsentRecord(id="c2")
+    logger.record_access(record, actor="bob", action="write", scope="settings")
+    logger.record_access(record, actor="alice", action="read", scope="profile")
+    results = logger.query(actor="alice")
+    assert len(results) == 1
+    assert results[0].actor == "alice"
 
-def test_edge_case_empty_logs():
-    sentry = ComplianceSentry()
-    assert sentry.get_logs() == []
-    stored_logs = sentry.store_logs_securely()
-    assert stored_logs == "[]"
+def test_query_by_record_id(logger):
+    rec1 = ConsentRecord(id="r1")
+    rec2 = ConsentRecord(id="r2")
+    logger.record_access(rec1, actor="x", action="read", scope="p")
+    logger.record_access(rec2, actor="y", action="write", scope="s")
+    res = logger.query(record_id="r1")
+    assert len(res) == 1
+    assert res[0].action == "read"
+
+def test_query_no_results(logger):
+    rec = ConsentRecord(id="empty")
+    res = logger.query(record_id="empty")
+    assert res == []
+
+def test_to_json_serialization(logger):
+    rec = ConsentRecord(id="json")
+    logger.record_access(rec, actor="z", action="delete", scope="data")
+    json_str = logger.to_json("json")
+    import json as _json
+    data = _json.loads(json_str)
+    assert isinstance(data, list)
+    assert len(data) == 1
+    assert data[0]["actor"] == "z"
