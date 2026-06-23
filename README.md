@@ -1,13 +1,11 @@
-# compliance-sentry
+# Compliance Sentry
 
-A minimal, pure‑Python implementation of a real‑time audit‑ready logging system.
-It records immutable access events for consent records and exposes a simple
-query API.
-
-## Features
-
-- Immutable log entries per consent record
-- Each log contains timestamp, actor, action, and data scope
-- In‑memory query interface (no external DB)
+Compliance Sentry is a middleware that validates consent before a batch training job reads a data file, excluding non-consented records automatically.
 
 ## Usage
+
+1. Create a consent store file with a list of consented UUIDs.
+2. Create a data file with rows of UUIDs and data.
+3. Run the middleware with the consent store file and data file as arguments.
+
+## Example

@@ -1,75 +1,60 @@
+import argparse
 import json
-import time
-from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional
-
-@dataclass(frozen=True)
-class LogEntry:
-    timestamp: float
-    actor: str
-    action: str
-    scope: str
+from dataclasses import dataclass
+from typing import List
 
 @dataclass
-class ConsentRecord:
-    id: str
-    # immutable log stored separately
-    _log: List[LogEntry] = field(default_factory=list, init=False, repr=False)
+class DataRow:
+    uuid: str
+    data: str
 
-class Logger:
-    """
-    In‑memory logger that records immutable access events per ConsentRecord.
-    """
+class ConsentStore:
     def __init__(self):
-        # mapping from record id to list of LogEntry
-        self._store: Dict[str, List[LogEntry]] = {}
+        self.consents = {}
 
-    def record_access(
-        self,
-        record: ConsentRecord,
-        actor: str,
-        action: str,
-        scope: str,
-    ) -> LogEntry:
-        """
-        Record an access event. The event is immutable once stored.
-        """
-        entry = LogEntry(
-            timestamp=time.time(),
-            actor=actor,
-            action=action,
-            scope=scope,
-        )
-        self._store.setdefault(record.id, []).append(entry)
-        return entry
+    def add_consent(self, uuid: str):
+        self.consents[uuid] = True
 
-    def query(
-        self,
-        record_id: Optional[str] = None,
-        actor: Optional[str] = None,
-        action: Optional[str] = None,
-        scope: Optional[str] = None,
-    ) -> List[LogEntry]:
-        """
-        Return a list of LogEntry objects filtered by the provided criteria.
-        """
-        results: List[LogEntry] = []
-        for rid, entries in self._store.items():
-            if record_id and rid != record_id:
-                continue
-            for e in entries:
-                if actor and e.actor != actor:
-                    continue
-                if action and e.action != action:
-                    continue
-                if scope and e.scope != scope:
-                    continue
-                results.append(e)
-        return results
+    def has_consent(self, uuid: str) -> bool:
+        return self.consents.get(uuid, False)
 
-    def to_json(self, record_id: str) -> str:
-        """
-        Serialize the log entries for a given record to JSON.
-        """
-        entries = self.query(record_id=record_id)
-        return json.dumps([e.__dict__ for e in entries])
+class Middleware:
+    def __init__(self, consent_store: ConsentStore):
+        self.consent_store = consent_store
+
+    def filter_rows(self, rows: List[DataRow]) -> List[DataRow]:
+        filtered_rows = []
+        filtered_out_count = 0
+        for row in rows:
+            if self.consent_store.has_consent(row.uuid):
+                filtered_rows.append(row)
+            else:
+                filtered_out_count += 1
+        return filtered_rows, filtered_out_count
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--consent-store', type=str, help='Path to consent store file')
+    parser.add_argument('--data-file', type=str, help='Path to data file')
+    args = parser.parse_args()
+
+    consent_store = ConsentStore()
+    with open(args.consent_store, 'r') as f:
+        consents = json.load(f)
+        for uuid in consents:
+            consent_store.add_consent(uuid)
+
+    rows = []
+    with open(args.data_file, 'r') as f:
+        for line in f:
+            uuid, data = line.strip().split(',')
+            rows.append(DataRow(uuid, data))
+
+    middleware = Middleware(consent_store)
+    filtered_rows, filtered_out_count = middleware.filter_rows(rows)
+
+    print(f'Filtered out {filtered_out_count} rows')
+    print(f'Filtered rows: {len(filtered_rows)}')
+
+if __name__ == '__main__':
+    main()
