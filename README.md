@@ -1,11 +1,10 @@
 # Compliance Sentry
 
-Compliance Sentry is a middleware that validates consent before a batch training job reads a data file, excluding non-consented records automatically.
+A system for managing user consent revocation.
 
 ## Usage
 
-1. Create a consent store file with a list of consented UUIDs.
-2. Create a data file with rows of UUIDs and data.
-3. Run the middleware with the consent store file and data file as arguments.
-
-## Example
+1. Create a new instance of the `ComplianceSentry` class.
+2. Add a user consent using the `add_consent` method.
+3. Revoke a user consent using the `revoke_consent` method.
+4. Get the consent status of a user using the `get_consent_status` method.

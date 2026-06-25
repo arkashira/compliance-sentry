@@ -1,60 +1,41 @@
-import argparse
 import json
 from dataclasses import dataclass
-from typing import List
+from datetime import datetime
+from typing import Dict, List
 
 @dataclass
-class DataRow:
-    uuid: str
-    data: str
+class UserConsent:
+    id: int
+    user_id: int
+    consent_status: str
+    created_at: str
 
-class ConsentStore:
+class ComplianceSentry:
     def __init__(self):
         self.consents = {}
 
-    def add_consent(self, uuid: str):
-        self.consents[uuid] = True
+    def revoke_consent(self, user_id: int) -> None:
+        if user_id in self.consents:
+            self.consents[user_id].consent_status = "inactive"
+            self.send_confirmation_email(user_id)
+        else:
+            raise ValueError("User consent not found")
 
-    def has_consent(self, uuid: str) -> bool:
-        return self.consents.get(uuid, False)
+    def send_confirmation_email(self, user_id: int) -> None:
+        # In a real implementation, this would send an email
+        print(f"Sending confirmation email to user {user_id}")
 
-class Middleware:
-    def __init__(self, consent_store: ConsentStore):
-        self.consent_store = consent_store
+    def add_consent(self, user_id: int) -> None:
+        consent = UserConsent(
+            id=len(self.consents) + 1,
+            user_id=user_id,
+            consent_status="active",
+            created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        )
+        self.consents[user_id] = consent
 
-    def filter_rows(self, rows: List[DataRow]) -> List[DataRow]:
-        filtered_rows = []
-        filtered_out_count = 0
-        for row in rows:
-            if self.consent_store.has_consent(row.uuid):
-                filtered_rows.append(row)
-            else:
-                filtered_out_count += 1
-        return filtered_rows, filtered_out_count
-
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--consent-store', type=str, help='Path to consent store file')
-    parser.add_argument('--data-file', type=str, help='Path to data file')
-    args = parser.parse_args()
-
-    consent_store = ConsentStore()
-    with open(args.consent_store, 'r') as f:
-        consents = json.load(f)
-        for uuid in consents:
-            consent_store.add_consent(uuid)
-
-    rows = []
-    with open(args.data_file, 'r') as f:
-        for line in f:
-            uuid, data = line.strip().split(',')
-            rows.append(DataRow(uuid, data))
-
-    middleware = Middleware(consent_store)
-    filtered_rows, filtered_out_count = middleware.filter_rows(rows)
-
-    print(f'Filtered out {filtered_out_count} rows')
-    print(f'Filtered rows: {len(filtered_rows)}')
-
-if __name__ == '__main__':
-    main()
+    def get_consent_status(self, user_id: int) -> str:
+        if user_id in self.consents:
+            return self.consents[user_id].consent_status
+        else:
+            return "not found"

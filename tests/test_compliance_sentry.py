@@ -1,33 +1,24 @@
-import pytest
-from compliance_sentry import ConsentStore, Middleware, DataRow
+from compliance_sentry import ComplianceSentry, UserConsent
 
-def test_consent_store():
-    consent_store = ConsentStore()
-    consent_store.add_consent('uuid1')
-    assert consent_store.has_consent('uuid1')
-    assert not consent_store.has_consent('uuid2')
+def test_revoke_consent():
+    sentry = ComplianceSentry()
+    sentry.add_consent(1)
+    sentry.revoke_consent(1)
+    assert sentry.get_consent_status(1) == "inactive"
 
-def test_middleware_filter_rows():
-    consent_store = ConsentStore()
-    consent_store.add_consent('uuid1')
-    rows = [DataRow('uuid1', 'data1'), DataRow('uuid2', 'data2')]
-    middleware = Middleware(consent_store)
-    filtered_rows, filtered_out_count = middleware.filter_rows(rows)
-    assert len(filtered_rows) == 1
-    assert filtered_out_count == 1
+def test_revoke_nonexistent_consent():
+    sentry = ComplianceSentry()
+    try:
+        sentry.revoke_consent(1)
+        assert False, "Expected ValueError"
+    except ValueError as e:
+        assert str(e) == "User consent not found"
 
-def test_middleware_filter_rows_empty():
-    consent_store = ConsentStore()
-    rows = []
-    middleware = Middleware(consent_store)
-    filtered_rows, filtered_out_count = middleware.filter_rows(rows)
-    assert len(filtered_rows) == 0
-    assert filtered_out_count == 0
+def test_get_consent_status():
+    sentry = ComplianceSentry()
+    sentry.add_consent(1)
+    assert sentry.get_consent_status(1) == "active"
 
-def test_middleware_filter_rows_all_filtered():
-    consent_store = ConsentStore()
-    rows = [DataRow('uuid1', 'data1'), DataRow('uuid2', 'data2')]
-    middleware = Middleware(consent_store)
-    filtered_rows, filtered_out_count = middleware.filter_rows(rows)
-    assert len(filtered_rows) == 0
-    assert filtered_out_count == 2
+def test_get_nonexistent_consent_status():
+    sentry = ComplianceSentry()
+    assert sentry.get_consent_status(1) == "not found"
